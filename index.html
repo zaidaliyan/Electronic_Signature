@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signature Capture</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+    }
+
+    #signatureCanvas {
+        border: 2px solid #ccc;
+        margin: 20px auto;
+        display: block;
+    }
+
+    label {
+        font-weight: bold;
+    }
+
+    button {
+        margin: 10px;
+        padding: 8px 16px;
+        background-color: #007bff;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+
+    button:hover {
+        background-color: #0056b3;
+    }
+
+    input[type="color"],
+    input[type="range"] {
+        margin: 5px;
+    }
+</style>
+</head>
+<body>
+    <h1>Signature Capture</h1>
+    <canvas id="signatureCanvas" width="400" height="200"></canvas>
+    <br>
+    <label for="colorPicker">Marker Color:</label>
+    <input type="color" id="colorPicker" value="#000000">
+    <br>
+    <label for="thicknessRange">Marker Thickness:</label>
+    <input type="range" id="thicknessRange" min="1" max="20" value="2">
+    <br>
+    <button onclick="undo()">Undo</button>
+    <button onclick="redo()">Redo</button>
+    <button onclick="clearSignature()">Clear</button>
+    <button onclick="downloadSignature()">Download Signature</button>
+
+    <script>
+        const canvas = document.getElementById('signatureCanvas');
+        const ctx = canvas.getContext('2d');
+        const colorPicker = document.getElementById('colorPicker');
+        const thicknessRange = document.getElementById('thicknessRange');
+        let isDrawing = false;
+        let currentColor = '#000000'; // Default color
+        let currentThickness = 2; // Default thickness
+        let drawingHistory = [];
+        let currentStep = -1;
+
+        function saveState() {
+            if (currentStep < drawingHistory.length - 1) {
+                drawingHistory = drawingHistory.slice(0, currentStep + 1);
+            }
+            drawingHistory.push(canvas.toDataURL());
+            currentStep++;
+        }
+
+        function undo() {
+            if (currentStep > 0) {
+                currentStep--;
+                const img = new Image();
+                img.onload = function() {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0);
+                };
+                img.src = drawingHistory[currentStep];
+            }
+        }
+
+        function redo() {
+            if (currentStep < drawingHistory.length - 1) {
+                currentStep++;
+                const img = new Image();
+                img.onload = function() {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0);
+                };
+                img.src = drawingHistory[currentStep];
+            }
+        }
+
+        function startDrawing(x, y) {
+            isDrawing = true;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            saveState();
+        }
+
+        function draw(x, y) {
+            if (isDrawing) {
+                ctx.strokeStyle = currentColor;
+                ctx.lineWidth = currentThickness;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.lineTo(x, y);
+                ctx.stroke();
+            }
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        function clearSignature() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawingHistory = [];
+            currentStep = -1;
+        }
+
+        function downloadSignature() {
+            const dataUrl = canvas.toDataURL('image/png');
+            const a = document.createElement('a');
+            a.href = dataUrl;
+            a.download = 'signature.png';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        colorPicker.addEventListener('change', (e) => {
+            currentColor = e.target.value;
+        });
+
+        thicknessRange.addEventListener('change', (e) => {
+            currentThickness = parseInt(e.target.value);
+        });
+
+        // Event listeners for both mouse and touch events
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            startDrawing(mouseX, mouseY);
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            draw(mouseX, mouseY);
+        });
+
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseleave', stopDrawing);
+
+        canvas.addEventListener('touchstart', (e) => {
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = touch.clientX - rect.left;
+            const mouseY = touch.clientY - rect.top;
+            startDrawing(mouseX, mouseY);
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = touch.clientX - rect.left;
+            const mouseY = touch.clientY - rect.top;
+            draw(mouseX, mouseY);
+        });
+
+        canvas.addEventListener('touchend', stopDrawing);
+    </script>
+</body>
+</html>
